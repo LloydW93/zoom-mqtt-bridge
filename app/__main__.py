@@ -77,8 +77,8 @@ if not uat:
     with open(CREDENTIALS_FILE, "w") as cfh:
         json.dump(cattr.unstructure(uat), cfh)
 
+known_state = None
 while True:
-    known_state = None
     if time.time() >= uat.refresh_at_ts:
         uat = refresh_user_access_token(r_session, config, uat.refresh_token)
         with open(CREDENTIALS_FILE, "w") as cfh:
@@ -94,15 +94,18 @@ while True:
     except Exception as e:
         logging.exception("Something sad face happened: %s", e)
 
-    logging.info(data)
+    logging.debug(data)
 
     if data["presence_status"] != known_state:
         try:
             if data["presence_status"] == "Do_Not_Disturb":
+                logging.info("Entering meeting.")
                 mqtt_client.publish(config.mqtt_publish_to, config.mqtt_message_enter, retain=True)
             else:
+                logging.info("Leaving meeting.")
                 mqtt_client.publish(config.mqtt_publish_to, config.mqtt_message_leave, retain=True)
             known_state = data["presence_status"]
+            logging.debug("Known state is now %s", known_state)
         except Exception as e:
             logging.exception("Something differently sad face happened: %s", e)
 
