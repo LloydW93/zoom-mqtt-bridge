@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "zoom-mqtt-bridge"
+version = "0.1.0"
+description = ""
+authors = ["Lloyd Wallis <lloyd.wallis@bbc.co.uk>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+requests = "^2.23.0"
+attrs = "^19.3.0"
+cattrs = "^1.0.0"
+paho-mqtt = "^1.5.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
