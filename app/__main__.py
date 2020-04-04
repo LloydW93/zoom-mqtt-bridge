@@ -82,7 +82,7 @@ while True:
     if time.time() >= uat.refresh_at_ts:
         uat = refresh_user_access_token(r_session, config, uat.refresh_token)
         with open(CREDENTIALS_FILE, "w") as cfh:
-            cfh.write(cattr.unstructure(uat))
+            json.dump(cattr.unstructure(uat), cfh)
 
     try:
         data = r_session.get(
