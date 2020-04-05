@@ -8,6 +8,8 @@ import paho.mqtt.client as mqtt
 import requests
 import time
 
+from typing import Any
+
 from .model import Config, UserAccessToken
 
 logging.basicConfig(level=logging.DEBUG)
@@ -57,6 +59,12 @@ def refresh_user_access_token(session: requests.Session, config: Config, refresh
 
     return cattr.structure(result.json(), UserAccessToken)
 
+def mqtt_publish(client: mqtt, topic: str, payload: Any):
+    result = client.publish(topic, payload, retain=True)
+    logging.debug("Send %s to MQTT topic %s. Result: %s", payload, topic, result)
+    result.wait_for_publish()
+    logging.debug("Send confirmed.")
+
 
 with open(CONFIG_FILE, "r") as cfg_fh:
     config = cattr.structure(json.load(cfg_fh), Config)
@@ -100,10 +108,10 @@ while True:
         try:
             if data["presence_status"] == "Do_Not_Disturb":
                 logging.info("Entering meeting.")
-                mqtt_client.publish(config.mqtt_publish_to, config.mqtt_message_enter, retain=True)
+                mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_enter)
             else:
                 logging.info("Leaving meeting.")
-                mqtt_client.publish(config.mqtt_publish_to, config.mqtt_message_leave, retain=True)
+                mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_leave)
             known_state = data["presence_status"]
             logging.debug("Known state is now %s", known_state)
         except Exception as e:
