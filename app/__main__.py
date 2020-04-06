@@ -60,10 +60,12 @@ def refresh_user_access_token(session: requests.Session, config: Config, refresh
     return cattr.structure(result.json(), UserAccessToken)
 
 def mqtt_publish(client: mqtt, topic: str, payload: Any):
-    result = client.publish(topic, payload, retain=True)
+    result = client.publish(topic, payload, retain=True, qos=1)
     logging.debug("Send %s to MQTT topic %s. Result: %s", payload, topic, result)
-    result.wait_for_publish()
-    logging.debug("Send confirmed.")
+    if result.rc != 0:
+        logging.warning("Send failed, attempting reconnection to broker.")
+        client.reconnect()
+        mqtt_publish(client, topic, payload)
 
 
 with open(CONFIG_FILE, "r") as cfg_fh:
@@ -71,6 +73,7 @@ with open(CONFIG_FILE, "r") as cfg_fh:
 
 r_session = requests.Session()
 mqtt_client = mqtt.Client()
+mqtt_client.enable_logger()
 mqtt_client.connect(config.mqtt_host, config.mqtt_port, config.mqtt_timeout)
 
 uat = None
