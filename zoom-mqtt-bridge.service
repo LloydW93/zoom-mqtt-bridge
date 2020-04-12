@@ -1,0 +1,10 @@
+[Service]
+ExecStart=poetry run python -m app
+User=root
+Type=simple
+Restart=on-failure
+RestartSec=5s
+WorkingDirectory=/home/pi/zoom-mqtt-bridge/
+
+[Install]
+WantedBy=multi-user.target
