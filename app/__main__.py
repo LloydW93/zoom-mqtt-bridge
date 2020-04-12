@@ -59,13 +59,18 @@ def refresh_user_access_token(session: requests.Session, config: Config, refresh
 
     return cattr.structure(result.json(), UserAccessToken)
 
-def mqtt_publish(client: mqtt, topic: str, payload: Any):
+def mqtt_publish(client: mqtt, topic: str, payload: Any, is_retry: bool=False) -> bool:
     result = client.publish(topic, payload, retain=True, qos=1)
     logging.debug("Send %s to MQTT topic %s. Result: %s", payload, topic, result)
     if result.rc != 0:
         logging.warning("Send failed, attempting reconnection to broker.")
         client.reconnect()
-        mqtt_publish(client, topic, payload)
+        if not is_retry:
+            return mqtt_publish(client, topic, payload, is_retry=True)
+        else:
+            return False
+    else:
+        return True
 
 
 with open(CONFIG_FILE, "r") as cfg_fh:
@@ -111,12 +116,15 @@ while True:
         try:
             if data["presence_status"] == "Do_Not_Disturb":
                 logging.info("Entering meeting.")
-                mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_enter)
+                publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_enter)
             else:
                 logging.info("Leaving meeting.")
-                mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_leave)
-            known_state = data["presence_status"]
-            logging.debug("Known state is now %s", known_state)
+                publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_leave)
+            if publish_result:
+                known_state = data["presence_status"]
+                logging.debug("Known state is now %s", known_state)
+            else:
+                logging.debug("Not updating known state as publish failed")
         except Exception as e:
             logging.exception("Something differently sad face happened: %s", e)
 
