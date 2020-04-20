@@ -72,6 +72,20 @@ def mqtt_publish(client: mqtt, topic: str, payload: Any, is_retry: bool=False) -
     else:
         return True
 
+def sync_presence_status(client: mqtt, config: Config, presence_status: str) -> bool:
+    publish_result = False
+    try:
+        if presence_status == "Do_Not_Disturb":
+            logging.info("Entering meeting.")
+            publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_enter)
+        else:
+            logging.info("Leaving meeting.")
+            publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_leave)
+    except Exception as e:
+        logging.exception("Something differently sad face happened: %s", e)
+    
+    return publish_result
+
 
 with open(CONFIG_FILE, "r") as cfg_fh:
     config = cattr.structure(json.load(cfg_fh), Config)
@@ -94,6 +108,7 @@ if not uat:
         json.dump(cattr.unstructure(uat), cfh)
 
 known_state = None
+resync_time = 0
 while True:
     if time.time() >= uat.refresh_at_ts:
         uat = refresh_user_access_token(r_session, config, uat.refresh_token)
@@ -113,19 +128,16 @@ while True:
     logging.debug(data)
 
     if data["presence_status"] != known_state:
-        try:
-            if data["presence_status"] == "Do_Not_Disturb":
-                logging.info("Entering meeting.")
-                publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_enter)
-            else:
-                logging.info("Leaving meeting.")
-                publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_leave)
-            if publish_result:
-                known_state = data["presence_status"]
-                logging.debug("Known state is now %s", known_state)
-            else:
-                logging.debug("Not updating known state as publish failed")
-        except Exception as e:
-            logging.exception("Something differently sad face happened: %s", e)
+        publish_result = sync_presence_status(mqtt_client, config, data["presence_status"])
+        if publish_result:
+            known_state = data["presence_status"]
+            resync_time = time.time()
+            logging.debug("Known state is now %s", known_state)
+        else:
+            logging.debug("Not updating known state as publish failed") 
+    elif config.resync_interval and time.time() >= resync_time() - config.resync_interval:
+        sync_presence_status(mqtt_client, config, known_state)
+        logging.debug("Resynced status of %s", known_state)
+        resync_time = time.time()
 
     time.sleep(1)

@@ -17,6 +17,8 @@ class Config:
     user_code: Optional[str] = None
     mqtt_port: Optional[int] = 1883
     mqtt_timeout: Optional[int] = 60
+    # 0 = No resync
+    resync_interval: Optional[int] = 0
 
 
 @attr.s(auto_attribs=True)
