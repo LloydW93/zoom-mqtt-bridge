@@ -135,7 +135,7 @@ while True:
             logging.debug("Known state is now %s", known_state)
         else:
             logging.debug("Not updating known state as publish failed") 
-    elif config.resync_interval and time.time() >= resync_time - config.resync_interval:
+    elif config.resync_interval and time.time() >= resync_time + config.resync_interval:
         sync_presence_status(mqtt_client, config, known_state)
         logging.debug("Resynced status of %s", known_state)
         resync_time = time.time()
