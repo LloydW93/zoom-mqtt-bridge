@@ -62,7 +62,7 @@ def refresh_user_access_token(session: requests.Session, config: Config, refresh
 def mqtt_publish(client: mqtt, topic: str, payload: Any, is_retry: bool=False) -> bool:
     result = client.publish(topic, payload, retain=True, qos=1)
     logging.debug("Send %s to MQTT topic %s. Result: %s", payload, topic, result)
-    if result.rc != 0:
+    if result.rc != mqtt.MQTT_ERR_SUCCESS:
         logging.warning("Send failed, attempting reconnection to broker.")
         client.reconnect()
         if not is_retry:
@@ -91,7 +91,9 @@ with open(CONFIG_FILE, "r") as cfg_fh:
     config = cattr.structure(json.load(cfg_fh), Config)
 
 r_session = requests.Session()
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(
+    client_id=f"zoom-mqtt-bridge-{config.user_email}-{config.mqtt_publish_to}"
+)
 mqtt_client.enable_logger()
 mqtt_client.connect(config.mqtt_host, config.mqtt_port, config.mqtt_timeout)
 
