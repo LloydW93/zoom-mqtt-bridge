@@ -59,8 +59,8 @@ def refresh_user_access_token(session: requests.Session, config: Config, refresh
 
     return cattr.structure(result.json(), UserAccessToken)
 
-def mqtt_publish(client: mqtt, topic: str, payload: Any, is_retry: bool=False) -> bool:
-    result = client.publish(topic, payload, retain=True, qos=1)
+def mqtt_publish(client: mqtt, qos: bool, topic: str, payload: Any, is_retry: bool=False) -> bool:
+    result = client.publish(topic, payload, retain=True, qos=qos)
     logging.debug("Send %s to MQTT topic %s. Result: %s", payload, topic, result)
     if result.rc != mqtt.MQTT_ERR_SUCCESS:
         logging.warning("Send failed, attempting reconnection to broker.")
@@ -77,10 +77,10 @@ def sync_presence_status(client: mqtt, config: Config, presence_status: str) -> 
     try:
         if presence_status == "Do_Not_Disturb":
             logging.info("Entering meeting.")
-            publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_enter)
+            publish_result = mqtt_publish(mqtt_client, config.qos, config.mqtt_publish_to, config.mqtt_message_enter)
         else:
             logging.info("Leaving meeting.")
-            publish_result = mqtt_publish(mqtt_client, config.mqtt_publish_to, config.mqtt_message_leave)
+            publish_result = mqtt_publish(mqtt_client, config.qos, config.mqtt_publish_to, config.mqtt_message_leave)
     except Exception as e:
         logging.exception("Something differently sad face happened: %s", e)
     

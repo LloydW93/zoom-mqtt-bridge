@@ -19,6 +19,7 @@ class Config:
     mqtt_timeout: Optional[int] = 60
     # 0 = No resync
     resync_interval: Optional[int] = 0
+    qos: Optional[int] = 1
 
 
 @attr.s(auto_attribs=True)
