@@ -1,4 +1,5 @@
 import attr
+from enum import Enum
 import math
 import time
 from typing import Optional
@@ -34,3 +35,8 @@ class UserAccessToken:
     def __attrs_post_init__(self):
         if not self.refresh_at_ts:
             self.refresh_at_ts = math.floor(time.time() + self.expires_in - 300)
+
+class KnownState(Enum):
+    UNKNOWN = 0
+    ON_CALL = 1
+    OFF_CALL = 2

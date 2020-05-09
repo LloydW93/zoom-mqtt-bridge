@@ -10,12 +10,16 @@ import time
 
 from typing import Any
 
-from .model import Config, UserAccessToken
+from .model import Config, KnownState, UserAccessToken
 
 logging.basicConfig(level=logging.DEBUG)
 
 CONFIG_FILE = f"{os.path.dirname(os.path.dirname(__file__))}/config.json"
 CREDENTIALS_FILE = f"{os.path.dirname(os.path.dirname(__file__))}/.user_credentials.json"
+
+STATE_MAP = {
+    "Do_Not_Disturb": KnownState.ON_CALL
+}
 
 def build_client_bearer(config: Config) -> str:
     return base64.b64encode(f"{config.client_id}:{config.client_secret}".encode("ascii")).decode("ascii")
@@ -72,10 +76,10 @@ def mqtt_publish(client: mqtt, qos: bool, topic: str, payload: Any, is_retry: bo
     else:
         return True
 
-def sync_presence_status(client: mqtt, config: Config, presence_status: str) -> bool:
+def sync_presence_status(client: mqtt, config: Config, presence_status: KnownState) -> bool:
     publish_result = False
     try:
-        if presence_status == "Do_Not_Disturb":
+        if presence_status == KnownState.ON_CALL:
             logging.info("Entering meeting.")
             publish_result = mqtt_publish(mqtt_client, config.qos, config.mqtt_publish_to, config.mqtt_message_enter)
         else:
@@ -109,7 +113,7 @@ if not uat:
     with open(CREDENTIALS_FILE, "w") as cfh:
         json.dump(cattr.unstructure(uat), cfh)
 
-known_state = None
+known_state: KnownState = KnownState.UNKNOWN
 resync_time = 0
 while True:
     if time.time() >= uat.refresh_at_ts:
@@ -129,10 +133,12 @@ while True:
 
     logging.debug(data)
 
-    if data["presence_status"] != known_state:
-        publish_result = sync_presence_status(mqtt_client, config, data["presence_status"])
+    target_state = STATE_MAP.get(data["presence_status"], KnownState.OFF_CALL)
+
+    if target_state != known_state:
+        publish_result = sync_presence_status(mqtt_client, config, target_state)
         if publish_result:
-            known_state = data["presence_status"]
+            known_state = target_state
             resync_time = time.time()
             logging.debug("Known state is now %s", known_state)
         else:
