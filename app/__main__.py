@@ -98,9 +98,12 @@ r_session = requests.Session()
 mqtt_client = mqtt.Client(
     client_id=f"zoom-mqtt-bridge-{config.user_email}-{config.mqtt_publish_to}"
 )
+
+mqtt_client.on_message = lambda x: logging.error(f"I received something? {x}")
 mqtt_client.enable_logger()
 mqtt_client.connect(config.mqtt_host, config.mqtt_port, config.mqtt_timeout)
 
+mqtt_loop = mqtt_client.loop_start()
 uat = None
 if os.path.isfile(CREDENTIALS_FILE):
     try:
